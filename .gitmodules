@@ -1,0 +1,3 @@
+[submodule "opt/fmt"]
+	path = opt/fmt
+	url = https://github.com/fmtlib/fmt.git
