@@ -73,6 +73,9 @@ namespace klog
 	{
 
 		public:
+			ConsoleSink(bool color = true):with_color(color){
+
+			}
 			virtual ~ConsoleSink(){}
 
 			int32_t write(int level , const std::string &msg)
@@ -88,7 +91,13 @@ namespace klog
 			virtual void flush(const std::string & log = "")
 			{
 				buffer.append(log); 
-				std::cout << get_level_color() <<  buffer << std::endl; 
+				if (with_color)
+				{
+					std::cout << get_level_color() <<  buffer << ANSI_COLOR_RESET <<  std::endl; 
+				}else {
+					std::cout <<  buffer << std::endl; 
+				}
+				
 				buffer.clear(); 
 				line_level = -1; 
 			}
@@ -110,6 +119,7 @@ namespace klog
 
 
 		private:
+		bool with_color  = true; 
 			int line_level = -1; 
 			std::string buffer; 
 	};
