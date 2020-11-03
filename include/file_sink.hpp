@@ -11,7 +11,7 @@ namespace klog
     {
 
         public:
-            FileSink(const std::string &filePath) : logfile(filePath, std::ofstream::app) { }
+            explicit FileSink(const std::string &filePath) : logfile(filePath, std::ofstream::app) { }
 
             virtual ~FileSink(){
                 if (logfile.is_open()) {
@@ -27,7 +27,7 @@ namespace klog
                 }
             }
 
-            virtual int32_t write(const std::string &msg) {
+            virtual int32_t write(int level , const std::string &msg) {
 
                 if (logfile.is_open())
                 {

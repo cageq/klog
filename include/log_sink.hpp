@@ -6,9 +6,8 @@ namespace klog
 {
     class LogSink
     {
-
         public:
-            virtual int32_t write(const std::string &)
+            virtual int32_t write(int level , const std::string &)
             { 
                 return 0;
             }

@@ -35,65 +35,7 @@ enum KLogLevel
 
 #define MAX_LOG_LINE 1024
 #define WITH_COMMA_SUPPORT 0
-
-#ifdef _WIN32
-
-
-inline const char *_red()
-{
-	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_RED);
-	return "";
-}
-inline const char *_green()
-{
-	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_GREEN);
-	return "";
-}
-inline const char *_yellow()
-{
-	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_RED | FOREGROUND_GREEN);
-	return "";
-}
-
-inline const char *_blue()
-{
-	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_BLUE);
-	return "";
-}
-
-inline const char *_magenta()
-{
-	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_BLUE | FOREGROUND_RED);
-	return "";
-}
-inline const char *_cyan()
-{
-	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_BLUE | FOREGROUND_GREEN);
-	return "";
-}
-inline const char *_reset()
-{
-	SetConsoleTextAttribute(
-			GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_BLUE | FOREGROUND_RED | FOREGROUND_GREEN);
-	return "";
-}
-
-#define ANSI_COLOR_RED _red()
-#define ANSI_COLOR_GREEN _green()
-#define ANSI_COLOR_YELLOW _yellow()
-#define ANSI_COLOR_BLUE _blue()
-#define ANSI_COLOR_MAGENTA _magenta()
-#define ANSI_COLOR_CYAN _cyan()
-#define ANSI_COLOR_RESET _reset()
-#else
-#define ANSI_COLOR_RED "\x1b[31m"
-#define ANSI_COLOR_GREEN "\x1b[32m"
-#define ANSI_COLOR_YELLOW "\x1b[33m"
-#define ANSI_COLOR_BLUE "\x1b[34m"
-#define ANSI_COLOR_MAGENTA "\x1b[35m"
-#define ANSI_COLOR_CYAN "\x1b[36m"
-#define ANSI_COLOR_RESET "\x1b[0m"
-#endif
+ 
 
 namespace klog
 {
@@ -147,8 +89,8 @@ namespace klog
 				FlowHelper &operator<<(StandardEndLine manip) {
 					if (logger){
 						has_end = true;
-						fmt::format_to(logger->buffer, "{}", ANSI_COLOR_RESET ); 
-						logger->write_sinks(fmt::to_string(logger->buffer)); 
+					  
+						logger->write_sinks(logger->line_level, fmt::to_string(logger->buffer)); 
 						logger->flush();
 					}
 					return *this;
@@ -164,8 +106,8 @@ namespace klog
 
 				~FlowHelper() {
 					if (logger  && !has_end) {
-						fmt::format_to(logger->buffer, "{}", ANSI_COLOR_RESET ); 
-						logger->write_sinks(fmt::to_string(logger->buffer)); 
+					 
+						logger->write_sinks(logger->line_level, fmt::to_string(logger->buffer)); 
 						logger->flush();
 					}
 				}
@@ -186,9 +128,9 @@ namespace klog
 			// }
 		}
 
-		void write_sinks(const std::string & log ){
+		void write_sinks(int level , const std::string & log ){
 			for(auto & sink :log_sinks){
-				sink->write(log);
+				sink->write(level, log);
 			}
             buffer.clear(); 
 		}
@@ -200,7 +142,7 @@ namespace klog
 			{
 				sink_thread = std::thread([this](){
 						log_queue.process([this](const std::string &log){
-								this->write_sinks(log);
+								this->write_sinks(line_level, log);
 								return true;
 								});
 						});
@@ -255,30 +197,32 @@ namespace klog
 		}
 
 		inline KLog & debug_logger(){
-			fmt::format_to(buffer, "{}[DEBUG] ", ANSI_COLOR_CYAN);
+
+			line_level = LOG_LEVEL_DEBUG; 
+			fmt::format_to(buffer, "[DEBUG] ");
 			return *this;
 		}
 
 		inline KLog & info_logger(){
-			fmt::format_to(buffer, "{}[INFO] ", ANSI_COLOR_GREEN);
+			line_level = LOG_LEVEL_INFO; 
+			fmt::format_to(buffer, "[INFO] ");
 			return *this;
 		}
 
 		inline KLog & warn_logger(){
-			fmt::format_to(buffer, "{}[WARN] ", ANSI_COLOR_YELLOW);
+			line_level = LOG_LEVEL_WARN; 
+			fmt::format_to(buffer, "[WARN] ");
 			return *this;
 		}
 
 		inline KLog & error_logger(){
-			fmt::format_to(buffer, "{}[ERROR] ", ANSI_COLOR_RED);
+			line_level  = LOG_LEVEL_ERROR;
+			fmt::format_to(buffer, "[ERROR] ");
 			return *this;
 		}
 
 		void flush() {
-			//fmt::format_to(buffer, "{}\n", ANSI_COLOR_RED);
-			//const std::string & log = fmt::to_string(buffer);
-			//fmt::print( log + "{}\n", ANSI_COLOR_RESET);
-			//this->write(level, log);
+ 
 
 			for(auto & sink :log_sinks){
 				sink->flush(); 
@@ -294,39 +238,17 @@ namespace klog
 				{
                     fmt::memory_buffer fmtBuf; 
                     fmtBuf.reserve(256 ); 
-					format_log_prefix("{{}}[DEBUG]", fmtBuf, args...);
-                    fmt::format_to(fmtBuf, "{{}}"); 
-					// std::string log = fmt::format("[DEBUG] " + fmt::to_string(buf) ,    args...);
-					//fmt::print( fmt::to_string(buffer) + "{}\n", ANSI_COLOR_CYAN, args..., ANSI_COLOR_RESET);
+					format_log_prefix("[DEBUG]", fmtBuf, args...);               
+				 
 
-                    fmt::format_to(buffer, fmt::to_string(fmtBuf), ANSI_COLOR_CYAN, args..., ANSI_COLOR_RESET); 
+                    fmt::format_to(buffer, fmt::to_string(fmtBuf),   args...); 
 					this->write(LOG_LEVEL_DEBUG, fmt::to_string(buffer));
 					this->flush(); 
 					buffer.clear();
 				}
 				return *this;
 			}
-
-//		template <class... Args>
-//			KLog &debug(const char * func, int32_t no, Args... args)
-//			{
-//				if (level >= 3)
-//				{
-//                    fmt::memory_buffer fmtBuf; 
-//                    fmtBuf.reserve( 256); 
-//					format_log_prefix("{{}}[DEBUG] {{}}:{{}} " , fmtBuf, args...);
-//                    fmt::format_to(fmtBuf, "{{}}"); 
-//					// std::string log = fmt::format("[DEBUG] " + fmt::to_string(buf) ,    args...);
-//					//fmt::print( fmt::to_string(buffer) + "{}\n", ANSI_COLOR_CYAN, func, no, args..., ANSI_COLOR_RESET);
-//
-//                    fmt::format_to(buffer, fmtBuf.data(), ANSI_COLOR_CYAN, func, no , args..., ANSI_COLOR_RESET); 
-//					this->write(LOG_LEVEL_DEBUG, fmt::to_string(buffer));
-//                    this->flush(); 
-//					buffer.clear();
-//				}
-//				return *this;
-//			}
-//
+ 
 
 		static void dump_hex(const char *title, const char *buf, size_t bufLen, uint32_t line = 8)
 		{
@@ -344,14 +266,9 @@ namespace klog
 				if (level >= 3)
 				{
 
-					fmt::format_to(buffer, "{}[DEBUG] " + fmt + "{}", ANSI_COLOR_CYAN, args..., ANSI_COLOR_RESET ); 
+					fmt::format_to(buffer, "[DEBUG] " + fmt , args... ); 
 					this->write(LOG_LEVEL_DEBUG, fmt::to_string(buffer));
-					this->flush(); 
-
-					//fmt::print("{}[DEBUG] " + fmt + "{}\n", ANSI_COLOR_CYAN, args..., ANSI_COLOR_RESET);
-					// TODO it works, maybe has higher  performance, but it's trivial
-					// fmt::string_view myfmt(kFormat, (sizeof ...(args) + 3 ) * 3 +  -1 );
-					// fmt::print(myfmt, ANSI_COLOR_CYAN , args...,  ANSI_COLOR_RESET, "\n");
+					this->flush();  
 				}
 				return *this;
 			}
@@ -361,7 +278,7 @@ namespace klog
 		{
 			for (auto &sink : log_sinks)
 			{
-				sink->write(msg);
+				sink->write(level, msg);
 			}
 		}
 
@@ -371,14 +288,13 @@ namespace klog
 				if (level >= 2)
 				{
 					fmt::memory_buffer fmtBuf;
-					format_log_prefix("{{}}[INFO]", fmtBuf, args...);
-                    fmt::format_to(fmtBuf, "{{}}"); 
-                    fmt::format_to(buffer, fmt::to_string(fmtBuf), ANSI_COLOR_GREEN, args..., ANSI_COLOR_RESET); 
+					format_log_prefix("[INFO]", fmtBuf, args...);
+           
+                    fmt::format_to(buffer, fmt::to_string(fmtBuf), args...); 
 					this->write(LOG_LEVEL_INFO, fmt::to_string(buffer));
 					this->flush(); 
 
-					// std::string log = fmt::format("[INFO] " + fmt::to_string(buf) ,    args...);
-					//fmt::print( fmt::to_string(buffer) + "{}\n", ANSI_COLOR_GREEN, args..., ANSI_COLOR_RESET);
+ 
 					buffer.clear();
 				}
 				return *this;
@@ -388,7 +304,7 @@ namespace klog
 			{
 				if (level >= 2)
 				{
-					fmt::format_to(buffer, "{}[INFO] " + fmt + "{}", ANSI_COLOR_GREEN , args..., ANSI_COLOR_RESET ); 
+					fmt::format_to(buffer, "[INFO] " + fmt  , args... ); 
 					this->write(LOG_LEVEL_INFO, fmt::to_string(buffer));
 					this->flush(); 
 				}
@@ -402,9 +318,9 @@ namespace klog
 				{
 					fmt::memory_buffer fmtBuf; 
 					fmtBuf.reserve(256 ); 
-					format_log_prefix("{{}}[WARN]", fmtBuf, args...);
-					fmt::format_to(fmtBuf, "{{}}"); 
-					fmt::format_to(buffer, fmt::to_string(fmtBuf), ANSI_COLOR_YELLOW, args..., ANSI_COLOR_RESET); 
+					format_log_prefix("[WARN]", fmtBuf, args...);
+			
+					fmt::format_to(buffer, fmt::to_string(fmtBuf), args...); 
 					this->write(LOG_LEVEL_WARN, fmt::to_string(buffer));
                     this->flush(); 
 					buffer.clear();
@@ -418,7 +334,7 @@ namespace klog
 			{
 				if (level >= 1)
 				{
-					fmt::format_to(buffer, "{}[WARN] " + fmt + "{}", ANSI_COLOR_YELLOW, args..., ANSI_COLOR_RESET ); 
+					fmt::format_to(buffer, "[WARN] " + fmt , args... ); 
 					this->write(LOG_LEVEL_WARN, fmt::to_string(buffer));
 					this->flush(); 
 				}
@@ -429,14 +345,12 @@ namespace klog
 			KLog &error(Args... args)
 			{
 				if (level >= 0)
-				{
+				{ 
 
-
-                    fmt::memory_buffer fmtBuf; 
-					fmtBuf.reserve(256 ); 
-					format_log_prefix("{{}}[ERROR]", fmtBuf, args...);
-					fmt::format_to(fmtBuf, "{{}}"); 
-					fmt::format_to(buffer, fmt::to_string(fmtBuf), ANSI_COLOR_RED, args..., ANSI_COLOR_RESET); 
+                    fmt::memory_buffer fmtBuf;  
+					format_log_prefix("[ERROR]", fmtBuf, args...);
+			
+					fmt::format_to(buffer, fmt::to_string(fmtBuf), args...); 
 					this->write(LOG_LEVEL_ERROR, fmt::to_string(buffer));
                     this->flush(); 
 					buffer.clear();
@@ -449,7 +363,7 @@ namespace klog
 			{
 				if (level >= 0)
 				{
-					fmt::format_to(buffer, "{}[ERROR] " + fmt + "{}", ANSI_COLOR_RED, args..., ANSI_COLOR_RESET ); 
+					fmt::format_to(buffer, "[ERROR] " + fmt , args... ); 
 					this->write(LOG_LEVEL_ERROR, fmt::to_string(buffer));
 					this->flush(); 
 				}
@@ -486,6 +400,7 @@ namespace klog
 		std::vector<LogSinkPtr> log_sinks;
 		uint32_t level = KLOG_LEVEL;
 
+		uint32_t line_level = KLOG_LEVEL; 
 		std::thread sink_thread;
 		SyncQueue<std::string>  log_queue;
 	};

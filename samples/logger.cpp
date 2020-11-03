@@ -32,7 +32,7 @@ int main(int argc, char **argv)
         //        elog("error log from xlog {}  ", index ); 
 
 
-        dput("dput log from xput", index); 
+   
         dput("dput log from xput", index); 
         iput("iput log from xput", index); 
         wput("wput log from xput", index); 
