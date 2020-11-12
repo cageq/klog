@@ -149,6 +149,10 @@ namespace klog
 			}
 		}
 
+		void add_console(){                                                                                                
+			add_sink(std::make_shared<ConsoleSink>());                                                                     
+		}          
+
 		void add_sink(LogSinkPtr sink)
 		{
 			log_sinks.push_back(sink);
