@@ -13,6 +13,7 @@
 #include <fmt/printf.h>
 #include "log_sink.hpp"
 #include "sync_queue.hpp"
+#include "console_sink.hpp"
 
 
 #ifndef KLOG_LEVEL
