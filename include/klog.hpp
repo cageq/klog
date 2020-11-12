@@ -412,6 +412,9 @@ namespace klog
 		}
 } // namespace klog
 
+#define kLogIns  klog::KLog::instance()
+
+
 #if KLOG_LEVEL > 3
 
 #define dput(...) klog::KLog::instance().debug( __FUNCTION__, __LINE__,  __VA_ARGS__)
