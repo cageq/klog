@@ -411,7 +411,7 @@ namespace klog
 	};
 
 	template <class... Args>
-		std::string _fmt(Args... args)
+		inline std::string _fmt(Args... args)
 		{
 			return std::move(fmt::format(args...));
 		}
