@@ -14,6 +14,8 @@
 #include "log_sink.hpp"
 #include "sync_queue.hpp"
 #include "console_sink.hpp"
+#include <chrono>
+#include <fmt/chrono.h>
 
 
 #ifndef KLOG_LEVEL
@@ -40,6 +42,15 @@ enum KLogLevel
 
 namespace klog
 {
+
+
+
+	inline std::tm  log_time(){
+		return fmt::localtime(std::time(nullptr));
+	}
+
+	
+
 
     inline uint32_t args_length(){ return 0; }
     template <class T, class ... Args> 
@@ -428,7 +439,7 @@ namespace klog
 #define eput(...) klog::KLog::instance().error(__FUNCTION__, __LINE__, __VA_ARGS__)
 
 #define dlog(fmt, ...) \
-	klog::KLog::instance().debug_format("{}:{} " fmt, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+	klog::KLog::instance().debug_format("{:%H:%M:%S},{}:{} " fmt, log_time() , __FUNCTION__, __LINE__, ##__VA_ARGS__)
 #define ilog(fmt, ...) \
 	klog::KLog::instance().info_format("{}:{} " fmt, __FUNCTION__, __LINE__, ##__VA_ARGS__)
 #define wlog(fmt, ...) \
