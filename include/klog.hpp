@@ -439,7 +439,7 @@ namespace klog
 #define eput(...) klog::KLog::instance().error(__FUNCTION__, __LINE__, __VA_ARGS__)
 
 #define dlog(fmt, ...) \
-	klog::KLog::instance().debug_format("{:%H:%M:%S},{}:{} " fmt, log_time() , __FUNCTION__, __LINE__, ##__VA_ARGS__)
+	klog::KLog::instance().debug_format("{:%H:%M:%S},{}:{} " fmt, klog::log_time() , __FUNCTION__, __LINE__, ##__VA_ARGS__)
 #define ilog(fmt, ...) \
 	klog::KLog::instance().info_format("{}:{} " fmt, __FUNCTION__, __LINE__, ##__VA_ARGS__)
 #define wlog(fmt, ...) \
