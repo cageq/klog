@@ -12,6 +12,10 @@ namespace klog
 
         public:
             explicit FileSink(const std::string &filePath) : logfile(filePath, std::ofstream::app) { }
+			struct RotatingRule{
+
+
+			}; 
 
             virtual ~FileSink(){
                 if (logfile.is_open()) {
