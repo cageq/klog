@@ -24,422 +24,511 @@
 #endif
 
 
+namespace klog
+{
+
 #ifndef KLOG_SEPRATOR
 #define KLOG_SEPRATOR " "
 #endif
 
-enum KLogLevel
-{
-	LOG_LEVEL_INFO,
-	LOG_LEVEL_DEBUG,
-	LOG_LEVEL_WARN,
-	LOG_LEVEL_ERROR,
-};
-
 #define  KLOG_THREAD_SAFE   1
+
 #ifdef KLOG_THREAD_SAFE  
-using LogMutex = std::mutex; 
+    using LogMutex = std::mutex; 
 #else 
-struct LogMutex{
-	void lock(){}; 
-	void unlock(){}; 
-	void try_lock(){}; 
-}; 
+    struct LogMutex{
+        void lock(){}; 
+        void unlock(){}; 
+        void try_lock(){}; 
+    }; 
 #endif 
 
 #define MAX_LOG_LINE       1024
 #define WITH_COMMA_SUPPORT 0
- 
 
-namespace klog
-{
+    enum KLogLevel
+    {
+        LOG_LEVEL_INFO,
+        LOG_LEVEL_DEBUG,
+        LOG_LEVEL_WARN,
+        LOG_LEVEL_ERROR,
+    };
 
-	inline std::tm  log_time(){
-		return fmt::localtime(std::time(nullptr));
-	}
+    const char *   kLogLevelPrefix[] = {
 
+        "[INFO]", 
+        "[DEBUG]", 
+        "[WARN]",
+        "[ERROR]"
+    }; 
+    inline std::tm  log_time(){
+        return fmt::localtime(std::time(nullptr));
+    }
 
+    /*
     inline uint32_t args_length(){ return 0; }
     template <class T, class ... Args> 
         uint32_t args_length( T, Args ... args) {
             return sizeof(T) + args_length( args...); 
         }
+        */
 
-	inline void format_log_postfix(fmt::memory_buffer &buf) {}
+    inline void format_log_postfix(fmt::memory_buffer &buf) {}
 
-	template <class P, class... Args>
-		void format_log_postfix(fmt::memory_buffer &buf, P first, Args... rest)
-		{
-			fmt::format_to(buf, KLOG_SEPRATOR "{{}}");
-			format_log_postfix(buf, rest...);
-		}
+    template <class P, class... Args>
+        void format_log_postfix(fmt::memory_buffer &buf, P first, Args... rest)
+        {
+            fmt::format_to(buf, KLOG_SEPRATOR "{{}}");
+            format_log_postfix(buf, rest...);
+        }
 
-	template <class P, class... Args>
-		void format_log_prefix(const std::string & prefix, fmt::memory_buffer &buf, P first, Args... rest)
-		{
-			fmt::format_to(buf, prefix+ "{{}}");
-			format_log_postfix(buf, rest...);
-		}
-template <class Mutex = LogMutex> 
-	class KLog
-	{
+    template <class P, class... Args>
+        void format_log_prefix(const std::string & prefix, fmt::memory_buffer &buf, P first, Args... rest)
+        {
+            fmt::format_to(buf, prefix+ "{{}}");
+            format_log_postfix(buf, rest...);
+        }
 
-		typedef std::basic_ostream<char, std::char_traits<char>> CoutType;
-		// this is the function signature of std::endl
-		typedef CoutType &(*StandardEndLine)(CoutType &);
+    template <class Mutex = LogMutex> 
+        class KLog
+        {
+            typedef std::basic_ostream<char, std::char_traits<char>> CoutType;
+            // this is the function signature of std::endl
+            typedef CoutType &(*StandardEndLine)(CoutType &);
 
-		class FlowHelper{
-			public:
-				FlowHelper( const FlowHelper& other)  = delete ;
+            class FlowHelper{
+                public:
+                    FlowHelper( const FlowHelper& other)  = delete ;
 
-				const FlowHelper& operator=( const FlowHelper& other)  = delete;
+                    const FlowHelper& operator=( const FlowHelper& other)  = delete;
 
-				FlowHelper(KLog *log = nullptr):logger(log){   }
+                    FlowHelper(KLog *log = nullptr):logger(log){   }
 
-				FlowHelper(FlowHelper&& other ){
-					this->logger = other.logger;
-					other.logger = nullptr;
-				}
-				FlowHelper& operator=(FlowHelper&& other) {
-					logger = other.logger;
-					other.logger = nullptr;
-					return *this;
-				}
+                    FlowHelper(FlowHelper&& other ){
+                        this->logger = other.logger;
+                        other.logger = nullptr;
+                    }
+                    FlowHelper& operator=(FlowHelper&& other) {
+                        logger = other.logger;
+                        other.logger = nullptr;
+                        return *this;
+                    }
 
-				FlowHelper &operator<<(StandardEndLine manip) {
-					if (logger){
-						has_end = true;
-					  
-						logger->write_sinks(logger->line_level, fmt::to_string(logger->buffer)); 
-						logger->flush();
-					}
-					return *this;
-				}
+                    FlowHelper &operator<<(StandardEndLine manip) {
+                        if (logger){
+                            has_end = true;
+                            logger->write_sinks(logger->line_level, fmt::to_string(logger->buffer)); 
+                            logger->flush();
+                        }
+                        return *this;
+                    }
 
-				template <class T>
-					FlowHelper &  operator<<(const T &log) {
-						if (logger){
-							fmt::format_to(logger->buffer, "{}", log);
-						}
-						return *this;
-					}
+                    template <class T>
+                        FlowHelper &  operator<<(const T &log) {
+                            if (logger){
+                                fmt::format_to(logger->buffer, " {}", log);
+                            }
+                            return *this;
+                        }
 
-				~FlowHelper() {
-					if (logger  && !has_end) {
-					 
-						logger->write_sinks(logger->line_level, fmt::to_string(logger->buffer)); 
-						logger->flush();
-					}
-				}
-				bool has_end = false;
-				KLog *logger = nullptr;
-		};
-		class EmptyFlow{
-			public:
-				template <class T>
-					inline	EmptyFlow &  operator<<(const T &log) { return *this; }
-		};
+                    ~FlowHelper() {
+                        if (logger  && !has_end) {
+                            logger->write_sinks(logger->line_level, fmt::to_string(logger->buffer)); 
+                            logger->flush();
+                        }
+                    }
+                    bool has_end = false;
+                    KLog *logger = nullptr;
+            };
 
-
-		~KLog()
-		{
-			// if (buffer.size() > 0) {
-			// 	fmt::print(  fmt::to_string(buffer) );
-			// }
-		}
-
-		void write_sinks(int level , const std::string & log ){
-			for(auto & sink :log_sinks){
-				sink->write(level, log);
-			}
-            buffer.clear(); 
-		}
-
-		public:
-		void init_async(bool async = false){
-
-			if (async && sink_thread.joinable())
-			{
-				sink_thread = std::thread([this](){
-						log_queue.process([this](const std::string &log){
-								this->write_sinks(line_level, log);
-								return true;
-								});
-						});
-			}
-		}
-
-		void add_console(){                                                                                                
-			add_sink(std::make_shared<ConsoleSink>());                                                                     
-		}          
-
-		void add_sink(LogSinkPtr sink)
-		{
-			log_sinks.push_back(sink);
-		}
-
-		template <class T, class ... Args> void add_sink( Args &&... args){
-			log_sinks.push_back(std::make_shared<T>(args ... ));
-		}
-
-		KLog & operator<<(StandardEndLine manip) {
-			flush();
-			return *this;
-		}
+            class EmptyFlow{
+                public:
+                    template <class T>
+                        inline	EmptyFlow &  operator<<(const T &log) { return *this; }
+            };
 
 
-		//	FlowHelper &operator<<(StandardEndLine manip)
-		//	{
-		//	    flush();
-		//	    return std::move(FlowHelper(this);
-		//	}
-		//		template <class T>
-		//			KLog & operator<<(const T &log)
-		//			{
-		//				fmt::format_to(buffer, "{}", log);
-		//				if (buffer.size() > 1024) {
-		//					flush();
-		//				}
-		//				//return std::move(FlowHelper(this));
-		//				return  *this;
-		//			}
-		//
+            public:
+            KLog(const std::string & logName = "default"):dout(*this),iout(*this),wout(*this),eout(*this){
+                log_name  = logName; 
+            }
 
-		template <class T>
-			FlowHelper operator<<(const T &log)
-			{
-				fmt::format_to(buffer, "{}", log);
-				if (buffer.size() > MAX_LOG_LINE) {
-					flush();
-				}
-				return FlowHelper(this);
-			}
+             struct NullLogger{
+                NullLogger(KLog<Mutex> & log):logger(log) { }
+                template <class T>
+                    FlowHelper operator<<(const T &log) {
+                        return logger.null_logger() << log ; 
+                    }
 
-		inline EmptyFlow & null_logger(){
-			static EmptyFlow  empty_flow;
-			return empty_flow;
-		}
+                KLog<Mutex> & logger; 
+            };
 
-		inline KLog & debug_logger(){
+            struct DebugLogger{
+                DebugLogger(KLog<Mutex> & log):logger(log) { }
+                template <class T>
+                    FlowHelper operator<<(const T &log) {
+                        return logger.debug_logger() << log ; 
+                    }
 
-			line_level = LOG_LEVEL_DEBUG; 
-			fmt::format_to(buffer, "[DEBUG] ");
-			return *this;
-		}
+                KLog<Mutex> & logger; 
+            };
 
-		inline KLog & info_logger(){
-			line_level = LOG_LEVEL_INFO; 
-			fmt::format_to(buffer, "[INFO] ");
-			return *this;
-		}
+            struct InfoLogger{
+                InfoLogger(KLog<Mutex> & log):logger(log) { }
+                template <class T>
+                    FlowHelper operator<<(const T &log) {
+                        return logger.info_logger() << log ; 
+                    }
 
-		inline KLog & warn_logger(){
-			line_level = LOG_LEVEL_WARN; 
-			fmt::format_to(buffer, "[WARN] ");
-			return *this;
-		}
+                KLog<Mutex> & logger; 
+            };
+            struct WarnLogger{
+                WarnLogger(KLog<Mutex> & log):logger(log) { }
+                template <class T>
+                    FlowHelper operator<<(const T &log) {
+                        return logger.warn_logger() << log ; 
+                    }
 
-		inline KLog & error_logger(){
-			line_level  = LOG_LEVEL_ERROR;
-			fmt::format_to(buffer, "[ERROR] ");
-			return *this;
-		}
+                KLog<Mutex> & logger; 
+            };
 
-		void flush() {
- 
+            struct ErrorLogger{
+                ErrorLogger(KLog<Mutex> & log):logger(log) { }
+                template <class T>
+                    FlowHelper operator<<(const T &log) {
+                        return logger.error_logger() << log ; 
+                    }
 
-			for(auto & sink :log_sinks){
-				sink->flush(); 
-			}
-			buffer.clear();
-		}
+                KLog<Mutex> & logger; 
+            };
 
 
-		template <class... Args>
-			KLog &debug(Args... args)
-			{
-				if (level >= 3)
-				{
-                    fmt::memory_buffer fmtBuf; 
-                    fmtBuf.reserve(256 ); 
-					format_log_prefix("[DEBUG]", fmtBuf, args...);               
-				 
 
-                    fmt::format_to(buffer, fmt::to_string(fmtBuf),   args...); 
-					this->write(LOG_LEVEL_DEBUG, fmt::to_string(buffer));
-					this->flush(); 
-					buffer.clear();
-				}
-				return *this;
-			}
- 
+            DebugLogger dout; 
+            InfoLogger iout; 
+            WarnLogger wout; 
+            ErrorLogger eout; 
+            ~KLog()
+            {
+                // if (buffer.size() > 0) {
+                // 	fmt::print(  fmt::to_string(buffer) );
+                // }
+            }
+            const std::string & get_name() const {
+                return log_name; 
+            }
 
-		static void dump_hex(const char *title, const char *buf, size_t bufLen, uint32_t line = 8)
-		{
-			fprintf(stdout, "%s length %zd\n", title, bufLen);
-			for (uint32_t i = 0; i < bufLen; ++i)
-			{
-				fprintf(stdout, "%02X%s", (unsigned char)buf[i], (i + 1) % line == 0 ? "\n" : " ");
-			}
-			fprintf(stdout, "\n");
-		}
+            void write_sinks(int level , const std::string & log ){
+                for(auto & sink :log_sinks){
+                    sink->write(level, log);
+                }
+                buffer.clear(); 
+            }
 
-		template <class... Args>
-			KLog &debug_format(const std::string &fmt, Args... args)
-			{
-				if (level >= 3)
-				{
+            public:
+            void init_async(bool async = false){
 
-					fmt::format_to(buffer, "[DEBUG] " + fmt , args... ); 
-					this->write(LOG_LEVEL_DEBUG, fmt::to_string(buffer));
-					this->flush();  
-				}
-				return *this;
-			}
+                if (async && sink_thread.joinable())
+                {
+                    sink_thread = std::thread([this](){
+                            log_queue.process([this](const std::string &log){
+                                    this->write_sinks(line_level, log);
+                                    return true;
+                                    });
+                            });
+                }
+            }
+
+            void add_console(){                                                                                                
+                add_sink(std::make_shared<ConsoleSink>());                                                                     
+            }          
+
+            void add_sink(LogSinkPtr sink)
+            {
+                log_sinks.push_back(sink);
+            }
+
+            template <class T, class ... Args> void add_sink( Args &&... args){
+                log_sinks.push_back(std::make_shared<T>(args ... ));
+            }
+
+            KLog & operator<<(StandardEndLine manip) {
+                flush();
+                return *this;
+            }
 
 
-		void write(int32_t level, const std::string &msg)
-		{
-			for (auto &sink : log_sinks)
-			{
-				sink->write(level, msg);
-			}
-		}
+            //	FlowHelper &operator<<(StandardEndLine manip)
+            //	{
+            //	    flush();
+            //	    return std::move(FlowHelper(this);
+            //	}
+            //		template <class T>
+            //			KLog & operator<<(const T &log)
+            //			{
+            //				fmt::format_to(buffer, "{}", log);
+            //				if (buffer.size() > 1024) {
+            //					flush();
+            //				}
+            //				//return std::move(FlowHelper(this));
+            //				return  *this;
+            //			}
+            //
 
-		template <class... Args>
-			KLog &info(Args... args)
-			{
-				if (level >= 2)
-				{
-					fmt::memory_buffer fmtBuf;
-					format_log_prefix("[INFO]", fmtBuf, args...);
-           
-                    fmt::format_to(buffer, fmt::to_string(fmtBuf), args...); 
-					this->write(LOG_LEVEL_INFO, fmt::to_string(buffer));
-					this->flush(); 
+            template <class T>
+                FlowHelper operator<<(const T &log) {
+                    
+                    fmt::format_to(buffer,  "{}",  log);
+                    if (buffer.size() > MAX_LOG_LINE) {
+                        flush();
+                    }
+                    return FlowHelper(this);
+                }
 
- 
-					buffer.clear();
-				}
-				return *this;
-			}
-		template <class... Args>
-			KLog &info_format(const std::string &fmt, Args... args)
-			{
-				if (level >= 2)
-				{
-					fmt::format_to(buffer, "[INFO] " + fmt  , args... ); 
-					this->write(LOG_LEVEL_INFO, fmt::to_string(buffer));
-					this->flush(); 
-				}
-				return *this;
-			}
+            inline EmptyFlow & null_logger(){
+                static EmptyFlow  empty_flow;
+                return empty_flow;
+            }
 
-		template <class... Args>
-			KLog &warn(Args... args)
-			{
-				if (level >= 1)
-				{
-					fmt::memory_buffer fmtBuf; 
-					fmtBuf.reserve(256 ); 
-					format_log_prefix("[WARN]", fmtBuf, args...);
-			
-					fmt::format_to(buffer, fmt::to_string(fmtBuf), args...); 
-					this->write(LOG_LEVEL_WARN, fmt::to_string(buffer));
-                    this->flush(); 
-					buffer.clear();
+            
+            inline KLog & debug_logger(){
+                line_level = LOG_LEVEL_DEBUG; 
+                fmt::format_to(buffer, kLogLevelPrefix[line_level]);
+                return *this;
+            }
 
-				}
-				return *this;
-			}
+            inline KLog & info_logger(){
+                line_level = LOG_LEVEL_INFO; 
+                fmt::format_to(buffer, kLogLevelPrefix[line_level]);
+                return *this;
+            }
 
-		template <class... Args>
-			KLog &warn_format(const std::string &fmt, Args... args)
-			{
-				if (level >= 1)
-				{
-					fmt::format_to(buffer, "[WARN] " + fmt , args... ); 
-					this->write(LOG_LEVEL_WARN, fmt::to_string(buffer));
-					this->flush(); 
-				}
-				return *this;
-			}
+            inline KLog & warn_logger(){
+                line_level = LOG_LEVEL_WARN; 
+                fmt::format_to(buffer, kLogLevelPrefix[line_level]);
+                return *this;
+            }
 
-		template <class... Args>
-			KLog &error(Args... args)
-			{
-				if (level >= 0)
-				{ 
+            inline KLog & error_logger(){
+                line_level  = LOG_LEVEL_ERROR;
+                fmt::format_to(buffer, kLogLevelPrefix[line_level]);
+                return *this;
+            }
 
-                    fmt::memory_buffer fmtBuf;  
-					format_log_prefix("[ERROR]", fmtBuf, args...);
-			
-					fmt::format_to(buffer, fmt::to_string(fmtBuf), args...); 
-					this->write(LOG_LEVEL_ERROR, fmt::to_string(buffer));
-                    this->flush(); 
-					buffer.clear();
+            void flush() {
+                for(auto & sink :log_sinks){
+                    sink->flush(); 
+                }
+                buffer.clear();
+            }
 
-				}
-				return *this;
-			}
-		template <class... Args>
-			KLog &error_format(const std::string &fmt, Args... args)
-			{
-				if (level >= 0)
-				{
-					fmt::format_to(buffer, "[ERROR] " + fmt , args... ); 
-					this->write(LOG_LEVEL_ERROR, fmt::to_string(buffer));
-					this->flush(); 
-				}
-				return *this;
-			}
+
+            template <class... Args>
+                KLog &debug_put(Args... args)
+                {
+                    if (level >= 3)
+                    {
+                        fmt::memory_buffer fmtBuf; 
+                        fmtBuf.reserve(256 ); 
+                        format_log_prefix("[DEBUG]", fmtBuf, args...);               
+                        fmt::format_to(buffer, fmt::to_string(fmtBuf),   args...); 
+                        this->write(LOG_LEVEL_DEBUG, fmt::to_string(buffer));
+                        this->flush(); 
+                        buffer.clear();
+                    }
+                    return *this;
+                }
+
+
+            static void dump_hex(const char *title, const char *buf, size_t bufLen, uint32_t line = 8)
+            {
+                fprintf(stdout, "%s length %zd\n", title, bufLen);
+                for (uint32_t i = 0; i < bufLen; ++i)
+                {
+                    fprintf(stdout, "%02X%s", (unsigned char)buf[i], (i + 1) % line == 0 ? "\n" : " ");
+                }
+                fprintf(stdout, "\n");
+            }
+
+            template <class... Args>
+                KLog &dlog(const std::string &fmt, Args... args) {
+                    return debug_format( fmt, args ...); 
+                }
+
+            template <class... Args>
+                KLog &debug_format(const std::string &fmt, Args... args)
+                {
+                    if (level >= 3)
+                    {
+
+                        fmt::format_to(buffer, "[DEBUG] " + fmt , args... ); 
+                        this->write(LOG_LEVEL_DEBUG, fmt::to_string(buffer));
+                        this->flush();  
+                    }
+                    return *this;
+                }
+
+
+            void write(int32_t level, const std::string &msg)
+            {
+                for (auto &sink : log_sinks)
+                {
+                    sink->write(level, msg);
+                }
+            }
+
+            template <class... Args>
+                KLog &info_put(Args... args)
+                {
+                    if (level >= 2)
+                    {
+                        fmt::memory_buffer fmtBuf;
+                        format_log_prefix("[INFO]", fmtBuf, args...);
+
+                        fmt::format_to(buffer, fmt::to_string(fmtBuf), args...); 
+                        this->write(LOG_LEVEL_INFO, fmt::to_string(buffer));
+                        this->flush(); 
+
+
+                        buffer.clear();
+                    }
+                    return *this;
+                }
+
+
+            template <class... Args>
+                KLog &ilog(const std::string &fmt, Args... args){
+                    return info_format(fmt, args ...); 
+                }
+
+            template <class... Args>
+                KLog &info_format(const std::string &fmt, Args... args)
+                {
+                    if (level >= 2)
+                    {
+                        fmt::format_to(buffer, "[INFO] " + fmt  , args... ); 
+                        this->write(LOG_LEVEL_INFO, fmt::to_string(buffer));
+                        this->flush(); 
+                    }
+                    return *this;
+                }
+
+            template <class... Args>
+                KLog &warn_put(Args... args)
+                {
+                    if (level >= 1)
+                    {
+                        fmt::memory_buffer fmtBuf; 
+                        fmtBuf.reserve(256 ); 
+                        format_log_prefix("[WARN]", fmtBuf, args...);
+
+                        fmt::format_to(buffer, fmt::to_string(fmtBuf), args...); 
+                        this->write(LOG_LEVEL_WARN, fmt::to_string(buffer));
+                        this->flush(); 
+                        buffer.clear();
+
+                    }
+                    return *this;
+                }
+
+            template <class... Args>
+                KLog &wlog(const std::string &fmt, Args... args){
+                    return warn_format(fmt, args ...); 
+                }
+
+            template <class... Args>
+                KLog &warn_format(const std::string &fmt, Args... args)
+                {
+                    if (level >= 1)
+                    {
+                        fmt::format_to(buffer, "[WARN] " + fmt , args... ); 
+                        this->write(LOG_LEVEL_WARN, fmt::to_string(buffer));
+                        this->flush(); 
+                    }
+                    return *this;
+                }
+
+            template <class... Args>
+                KLog &error_put(Args... args)
+                {
+                    if (level >= 0)
+                    { 
+
+                        fmt::memory_buffer fmtBuf;  
+                        format_log_prefix("[ERROR]", fmtBuf, args...);
+
+                        fmt::format_to(buffer, fmt::to_string(fmtBuf), args...); 
+                        this->write(LOG_LEVEL_ERROR, fmt::to_string(buffer));
+                        this->flush(); 
+                        buffer.clear();
+
+                    }
+                    return *this;
+                }
+
+            template <class... Args>
+                KLog &elog(const std::string &fmt, Args... args){
+                    return error_format(fmt, args ...); 
+                }
+            
+            template <class... Args>
+                KLog &error_format(const std::string &fmt, Args... args)
+                {
+                    if (level >= 0)
+                    {
+                        fmt::format_to(buffer, "[ERROR] " + fmt , args... ); 
+                        this->write(LOG_LEVEL_ERROR, fmt::to_string(buffer));
+                        this->flush(); 
+                    }
+                    return *this;
+                }
 
 #if WITH_COMMA_SUPPORT
-		template <class T>
-			KLog &operator,(const T &val)
-			{
-				fmt::format_to(buffer, "{}", val);
-				return *this;
-			}
+            template <class T>
+                KLog &operator,(const T &val)
+                {
+                    fmt::format_to(buffer, "{}", val);
+                    return *this;
+                }
 
-		KLog &operator,(StandardEndLine val)
-		{
-			fmt::format_to(buffer, "\n");
-			return *this;
-		}
+            KLog &operator,(StandardEndLine val)
+            {
+                fmt::format_to(buffer, "\n");
+                return *this;
+            }
 #endif
 
-		static KLog &instance()
-		{
+            static KLog &instance()
+            {
 #ifdef KLOG_THREAD_SAFE  
-			thread_local static KLog * _instance; 
-			thread_local static std::once_flag initFlag;
+                thread_local static KLog * _instance; 
+                thread_local static std::once_flag initFlag;
 #else 
-			static KLog *_instance;
-			static std::once_flag initFlag;
+                static KLog *_instance;
+                static std::once_flag initFlag;
 #endif 
-			std::call_once(initFlag, [&] { _instance = new KLog(); });
-			return *_instance;
-		}
+                std::call_once(initFlag, [&] { _instance = new KLog(); });
+                return *_instance;
+            }
 
-		inline void set_level(uint32_t lv) { level = lv; }
+            inline void set_level(uint32_t lv) { level = lv; }
 
-		private:
-		fmt::memory_buffer buffer;
-		std::vector<LogSinkPtr> log_sinks;
-		uint32_t level = KLOG_LEVEL;
+            private:
+            fmt::memory_buffer buffer;
+            std::vector<LogSinkPtr> log_sinks;
+            uint32_t level = KLOG_LEVEL;
+            uint32_t line_level = KLOG_LEVEL; 
+            std::thread sink_thread;
+            SyncQueue<std::string>  log_queue;
+            Mutex  log_mutex; 
+            std::string log_name = "default"; 
+        };
 
-		uint32_t line_level = KLOG_LEVEL; 
-		std::thread sink_thread;
-		SyncQueue<std::string>  log_queue;
-		Mutex  log_mutex; 
-	};
-
-	template <class... Args>
-		inline std::string _fmt(Args... args)
-		{
-			return std::move(fmt::format(args...));
-		}
+    template <class... Args>
+        inline std::string _fmt(Args... args)
+        {
+            return std::move(fmt::format(args...));
+        }
 } // namespace klog
 
 #define kLogIns  klog::KLog::instance()
@@ -447,108 +536,335 @@ template <class Mutex = LogMutex>
 
 #if KLOG_LEVEL > 3
 
-#define dput(...) klog::KLog<>::instance().debug( __FUNCTION__, __LINE__,  __VA_ARGS__)
-#define iput(...) klog::KLog<>::instance().info(__FUNCTION__, __LINE__, __VA_ARGS__)
-#define wput(...) klog::KLog<>::instance().warn(__FUNCTION__, __LINE__, __VA_ARGS__)
-#define eput(...) klog::KLog<>::instance().error(__FUNCTION__, __LINE__, __VA_ARGS__)
+template <class... Args>
+inline klog::KLog<> &dput(Args... args){
+    return klog::KLog<>::instance().debug_put(  args ...); 
+}
+template <class... Args>
+inline klog::KLog<> &iput(Args... args){
+    return klog::KLog<>::instance().info_put(  args ...); 
+}
+template <class... Args>
+inline klog::KLog<> &wput(Args... args){
+    return klog::KLog<>::instance().warn_put(  args ...); 
+}
+template <class... Args>
+inline klog::KLog<> &eput(Args... args){
+    return klog::KLog<>::instance().error_put(  args ...); 
+}
 
-#define dlog(fmt, ...) \
-	klog::KLog<>::instance().debug_format("{:%H:%M:%S},{}:{} " fmt, klog::log_time() , __FUNCTION__, __LINE__, ##__VA_ARGS__)
+
+
+
+
+template <class... Args>
+inline klog::KLog<std::mutex> &dlog(const std::string &fmt, Args... args) {
+    return klog::KLog<>::instance().debug_format( fmt, args ...); 
+}
+
+template <class... Args>
+inline klog::KLog<std::mutex> &ilog(const std::string &fmt, Args... args) {
+    return klog::KLog<>::instance().info_format( fmt, args ...); 
+}
+
+
+template <class... Args>
+inline klog::KLog<std::mutex> &wlog(const std::string &fmt, Args... args) {
+    return klog::KLog<>::instance().warn_format( fmt, args ...); 
+}
+
+
+template <class... Args>
+inline klog::KLog<std::mutex> &elog(const std::string &fmt, Args... args) {
+    return klog::KLog<>::instance().error_format( fmt, args ...); 
+}
+
+
+
+/*
+
 #define ilog(fmt, ...) \
-	klog::KLog<>::instance().info_format("{}:{} " fmt, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+    klog::KLog<>::instance().info_format("{}:{} " fmt, __FUNCTION__, __LINE__, ##__VA_ARGS__)
 #define wlog(fmt, ...) \
-	klog::KLog<>::instance().warn_format("{}:{} " fmt, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+    klog::KLog<>::instance().warn_format("{}:{} " fmt, __FUNCTION__, __LINE__, ##__VA_ARGS__)
 #define elog(fmt, ...) \
-	klog::KLog<>::instance().error_format("{}:{} " fmt, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+    klog::KLog<>::instance().error_format("{}:{} " fmt, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+    */
+ 
 
-#define dout (klog::KLog<>::instance().debug_logger()   << __FUNCTION__ << ":" << __LINE__ << " ")
-#define iout (klog::KLog<>::instance().info_logger()    << __FUNCTION__ << ":" << __LINE__ << " ")
-#define wout (klog::KLog<>::instance().warn_logger()    << __FUNCTION__ << ":" << __LINE__ << " ")
-#define eout (klog::KLog<>::instance().error_logger()   << __FUNCTION__ << ":" << __LINE__ << " ")
+/*
+struct DOutLogger{
+    template <class T>
+        klog::KLog<>::FlowHelper   operator<<(const T &log) {
+            return klog::KLog<>::instance().debug_logger() << log ; 
+        }
+
+};
+*/
+
+//static DOutLogger dout;
+
+static klog::KLog<>::DebugLogger dout(klog::KLog<>::instance()); 
+static klog::KLog<>::InfoLogger iout(klog::KLog<>::instance()); 
+static klog::KLog<>::WarnLogger wout(klog::KLog<>::instance()); 
+static klog::KLog<>::ErrorLogger eout(klog::KLog<>::instance()); 
+
+//klog::KLog<>::OutLogger dout(klog::KLog<>::instance().debug_logger()); 
+//inline klog::KLog<> & dout() {
+    //return klog::KLog<>::instance().debug_logger() ; 
+//}
+
+//#define dout (klog::KLog<>::instance().debug_logger()   << __FUNCTION__ << ":" << __LINE__ << " ")
+//#define iout (klog::KLog<>::instance().info_logger()    << __FUNCTION__ << ":" << __LINE__ << " ")
+//#define wout (klog::KLog<>::instance().warn_logger()    << __FUNCTION__ << ":" << __LINE__ << " ")
+//#define eout (klog::KLog<>::instance().error_logger()   << __FUNCTION__ << ":" << __LINE__ << " ")
 
 #elif KLOG_LEVEL == 3
 
 
-#define dput(...)
-#define iput(...) klog::KLog<>::instance().info(__FUNCTION__, __LINE__, __VA_ARGS__)
-#define wput(...) klog::KLog<>::instance().warn(__FUNCTION__, __LINE__, __VA_ARGS__)
-#define eput(...) klog::KLog<>::instance().error(__FUNCTION__, __LINE__, __VA_ARGS__)
+template <class... Args>
+inline klog::KLog<> &dput(Args... args){
+    return klog::KLog<>::instance(); 
+}
+template <class... Args>
+inline klog::KLog<> &iput(Args... args){
+    return klog::KLog<>::instance().info_put(  args ...); 
+}
+template <class... Args>
+inline klog::KLog<> &wput(Args... args){
+    return klog::KLog<>::instance().warn_put(  args ...); 
+}
+template <class... Args>
+inline klog::KLog<> &eput(Args... args){
+    return klog::KLog<>::instance().error_put(  args ...); 
+}
 
 
 
-#define dlog(fmt, ...)
-#define ilog(fmt, ...) \
-	klog::KLog<>::instance().info_format("{}:{} " fmt, __FUNCTION__, __LINE__, ##__VA_ARGS__)
-#define wlog(fmt, ...) \
-	klog::KLog<>::instance().warn_format("{}:{} " fmt, __FUNCTION__, __LINE__, ##__VA_ARGS__)
-#define elog(fmt, ...) \
-	klog::KLog<>::instance().error_format("{}:{} " fmt, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+template <class... Args>
+inline klog::KLog<std::mutex> &dlog(const std::string &fmt, Args... args) {
+    return klog::KLog<>::instance(); 
+}
+
+template <class... Args>
+inline klog::KLog<std::mutex> &ilog(const std::string &fmt, Args... args) {
+    return klog::KLog<>::instance().info_format( fmt, args ...); 
+}
 
 
-#define dout klog::KLog<>::instance().null_logger()
-#define iout (klog::KLog<>::instance().info_logger()    << __FUNCTION__ << ":" << __LINE__ << " ")
-#define wout (klog::KLog<>::instance().warn_logger()    << __FUNCTION__ << ":" << __LINE__ << " ")
-#define eout (klog::KLog<>::instance().error_logger()   << __FUNCTION__ << ":" << __LINE__ << " ")
+template <class... Args>
+inline klog::KLog<std::mutex> &wlog(const std::string &fmt, Args... args) {
+    return klog::KLog<>::instance().warn_format( fmt, args ...); 
+}
+
+
+template <class... Args>
+inline klog::KLog<std::mutex> &elog(const std::string &fmt, Args... args) {
+    return klog::KLog<>::instance().error_format( fmt, args ...); 
+}
+
+
+
+static klog::KLog<>::NullLogger dout(klog::KLog<>::instance()); 
+static klog::KLog<>::InfoLogger iout(klog::KLog<>::instance()); 
+static klog::KLog<>::WarnLogger wout(klog::KLog<>::instance()); 
+static klog::KLog<>::ErrorLogger eout(klog::KLog<>::instance()); 
+
+// static klog::KLog<> &  dout  =   klog::KLog<>::instance().null_logger()   ; 
+
+// //#define dout klog::KLog<>::instance().null_logger()
+// #define iout (klog::KLog<>::instance().info_logger()    << __FUNCTION__ << ":" << __LINE__ << " ")
+// #define wout (klog::KLog<>::instance().warn_logger()    << __FUNCTION__ << ":" << __LINE__ << " ")
+// #define eout (klog::KLog<>::instance().error_logger()   << __FUNCTION__ << ":" << __LINE__ << " ")
 
 
 #elif KLOG_LEVEL == 2
 
 
-#define dput(...)
-#define iput(...)
-#define wput(...) klog::KLog<>::instance().warn(__FUNCTION__, __LINE__, __VA_ARGS__)
-#define eput(...) klog::KLog<>::instance().error(__FUNCTION__, __LINE__, __VA_ARGS__)
+
+template <class... Args>
+inline klog::KLog &dput(Args... args){
+    return klog::KLog<>::instance(); 
+}
+template <class... Args>
+inline klog::KLog &iput(Args... args){
+    return klog::KLog<>::instance(); 
+}
+template <class... Args>
+inline klog::KLog &wput(Args... args){
+    return klog::KLog<>::instance().warn_put(  args ...); 
+}
+template <class... Args>
+inline klog::KLog &eput(Args... args){
+    return klog::KLog<>::instance().error_put(  args ...); 
+}
 
 
 
-#define dlog(fmt, ...)
-#define ilog(fmt, ...)
-#define wlog(fmt, ...) \
-	klog::KLog<>::instance().warn_format("{}:{} " fmt, __FUNCTION__, __LINE__, ##__VA_ARGS__)
-#define elog(fmt, ...) \
-	klog::KLog<>::instance().error_format("{}:{} " fmt, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+
+template <class... Args>
+inline klog::KLog<std::mutex> &dlog(const std::string &fmt, Args... args) {
+    return klog::KLog<>::instance(); 
+}
+
+template <class... Args>
+inline klog::KLog<std::mutex> &ilog(const std::string &fmt, Args... args) {
+    return klog::KLog<>::instance(); 
+}
 
 
-#define dout klog::KLog<>::instance().null_logger()
-#define iout klog::KLog<>::instance().null_logger()
-#define wout (klog::KLog<>::instance().warn_logger()    << __FUNCTION__ << ":" << __LINE__ << " ")
-#define eout (klog::KLog<>::instance().error_logger()   << __FUNCTION__ << ":" << __LINE__ << " ")
+template <class... Args>
+inline klog::KLog<std::mutex> &wlog(const std::string &fmt, Args... args) {
+    return klog::KLog<>::instance().warn_format( fmt, args ...); 
+}
+
+
+template <class... Args>
+inline klog::KLog<std::mutex> &elog(const std::string &fmt, Args... args) {
+    return klog::KLog<>::instance().error_format( fmt, args ...); 
+}
+
+
+
+
+
+
+static klog::KLog<>::NullLogger dout(klog::KLog<>::instance()); 
+static klog::KLog<>::NullLogger iout(klog::KLog<>::instance()); 
+static klog::KLog<>::WarnLogger wout(klog::KLog<>::instance()); 
+static klog::KLog<>::ErrorLogger eout(klog::KLog<>::instance()); 
+
+
+// static klog::KLog<> &  dout  =   klog::KLog<>::instance().null_logger()   ; 
+
+
+// //#define dout klog::KLog<>::instance().null_logger()
+// #define iout klog::KLog<>::instance().null_logger()
+// #define wout (klog::KLog<>::instance().warn_logger()    << __FUNCTION__ << ":" << __LINE__ << " ")
+// #define eout (klog::KLog<>::instance().error_logger()   << __FUNCTION__ << ":" << __LINE__ << " ")
 
 #elif KLOG_LEVEL == 1
 
 
-#define dput(...)
-#define iput(...)
-#define wput(...)
-#define eput(...) klog::KLog<>::instance().error(__FUNCTION__, __LINE__, __VA_ARGS__)
+
+template <class... Args>
+inline klog::KLog<> &dput(Args... args){
+    return klog::KLog<>::instance(); 
+}
+template <class... Args>
+inline klog::KLog<> &iput(Args... args){
+    return klog::KLog<>::instance(); 
+}
+template <class... Args>
+inline klog::KLog<> &wput(Args... args){
+    return klog::KLog<>::instance(); 
+}
+template <class... Args>
+inline klog::KLog<> &eput(Args... args){
+    return klog::KLog<>::instance().error_put(  args ...); 
+}
 
 
 
-#define dlog(fmt, ...)
-#define ilog(fmt, ...)
-#define wlog(fmt, ...)
-#define elog(fmt, ...) \
-	klog::KLog::instance().error_format("{}:{} " fmt, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+
+template <class... Args>
+inline klog::KLog<std::mutex> &dlog(const std::string &fmt, Args... args) {
+    return klog::KLog<>::instance(); 
+}
+
+template <class... Args>
+inline klog::KLog<std::mutex> &ilog(const std::string &fmt, Args... args) {
+    return klog::KLog<>::instance(); 
+}
 
 
-#define dout klog::KLog<>::instance().null_logger()
-#define iout klog::KLog<>::instance().null_logger()
-#define wout klog::KLog<>::instance().null_logger()
-#define eout (klog::KLog<>::instance().error_logger()   << __FUNCTION__ << ":" << __LINE__  << " " )
+template <class... Args>
+inline klog::KLog<std::mutex> &wlog(const std::string &fmt, Args... args) {
+    return klog::KLog<>::instance(); 
+}
+
+
+template <class... Args>
+inline klog::KLog<std::mutex> &elog(const std::string &fmt, Args... args) {
+    return klog::KLog<>::instance().error_format( fmt, args ...); 
+}
+
+
+// static klog::KLog<> &  dout  =   klog::KLog<>::instance().null_logger()   ; 
+
+// //#define dout klog::KLog<>::instance().null_logger()
+// #define iout klog::KLog<>::instance().null_logger()
+// #define wout klog::KLog<>::instance().null_logger()
+// #define eout (klog::KLog<>::instance().error_logger()   << __FUNCTION__ << ":" << __LINE__  << " " )
+
+
+
+
+
+static klog::KLog<>::NullLogger dout(klog::KLog<>::instance()); 
+static klog::KLog<>::NullLogger iout(klog::KLog<>::instance()); 
+static klog::KLog<>::NullLogger wout(klog::KLog<>::instance()); 
+static klog::KLog<>::ErrorLogger eout(klog::KLog<>::instance()); 
+
+
+
 #elif KLOG_LEVEL == 0
 
-#define dput(...)
-#define iput(...)
-#define wput(...)
-#define eput(...)
 
-#define dlog(fmt, ...)
-#define ilog(fmt, ...)
-#define wlog(fmt, ...)
-#define elog(fmt, ...)
+template <class... Args>
+inline klog::KLog<> &dput(Args... args){
+    return klog::KLog<>::instance(); 
+}
+template <class... Args>
+inline klog::KLog<> &iput(Args... args){
+    return klog::KLog<>::instance(); 
+}
+template <class... Args>
+inline klog::KLog<> &wput(Args... args){
+    return klog::KLog<>::instance(); 
+}
+template <class... Args>
+inline klog::KLog<> &eput(Args... args){
+    return klog::KLog<>::instance(); 
+}
 
-#define dout  klog::KLog<>::instance().null_logger()
-#define iout  klog::KLog<>::instance().null_logger()
-#define wout  klog::KLog<>::instance().null_logger()
-#define eout  klog::KLog<>::instance().null_logger()
+
+template <class... Args>
+inline klog::KLog<std::mutex> &dlog(const std::string &fmt, Args... args) {
+    return klog::KLog<>::instance(); 
+}
+
+template <class... Args>
+inline klog::KLog<std::mutex> &ilog(const std::string &fmt, Args... args) {
+    return klog::KLog<>::instance(); 
+}
+
+
+template <class... Args>
+inline klog::KLog<std::mutex> &wlog(const std::string &fmt, Args... args) {
+    return klog::KLog<>::instance(); 
+}
+
+
+template <class... Args>
+inline klog::KLog<std::mutex> &elog(const std::string &fmt, Args... args) {
+    return klog::KLog<>::instance(); 
+}
+
+
+// static klog::KLog<> &  dout  =   klog::KLog<>::instance().null_logger()   ; 
+
+// //#define dout  klog::KLog<>::instance().null_logger()
+// #define iout  klog::KLog<>::instance().null_logger()
+// #define wout  klog::KLog<>::instance().null_logger()
+// #define eout  klog::KLog<>::instance().null_logger()
+
+
+
+static klog::KLog<>::NullLogger dout(klog::KLog<>::instance()); 
+static klog::KLog<>::NullLogger iout(klog::KLog<>::instance()); 
+static klog::KLog<>::NullLogger wout(klog::KLog<>::instance()); 
+static klog::KLog<>::NullLogger eout(klog::KLog<>::instance()); 
+
+
 #endif
