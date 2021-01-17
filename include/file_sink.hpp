@@ -6,7 +6,7 @@
 
 namespace klog
 {
-
+	template <class Mutex  = NoneMutex   > 
     class FileSink : public LogSink
     {
 
@@ -23,23 +23,33 @@ namespace klog
 
             virtual void flush(const std::string & log = "")
 			{
+
+                buffer.append(log);
                 if (logfile.is_open()){
-					logfile << log << "\n"; 	
-                    logfile.flush();
+					logfile << buffer << "\n"; 	
+                    logfile.flush();                    
                 }
+                buffer.clear();
+      
             }
 
             virtual int32_t write(int level , const std::string &msg) {
 
                 if (logfile.is_open())
                 {
-                    logfile << msg;
+                    buffer.append(msg);
                 }
                 return 0;
             }
 
         private:
             std::ofstream logfile;
+            Mutex log_mutex; 
+            static thread_local std::string buffer;
     };
+
+template <class Mutex >
+	thread_local std::string FileSink<Mutex >::buffer;
+
 
 } // namespace klog

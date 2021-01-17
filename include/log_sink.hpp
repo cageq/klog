@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <memory>
+#include "klog_base.hpp"
 
 namespace klog
 {

@@ -14,12 +14,12 @@ int main(int argc, char **argv)
 {
 
     KLog::instance().init_async(true);
-    KLog::instance().add_sink<FileSink>("./klog.log");
-    KLog::instance().add_sink<ConsoleSink>();
+    KLog::instance().add_sink<FileSink<> >("./klog.log");
+    KLog::instance().add_sink<ConsoleSink<std::mutex>  >();
     uint32_t index =0; 
 
     KLog mylog; 
-    mylog.add_sink<ConsoleSink>(); 
+    mylog.add_sink<ConsoleSink<>>(); 
 
 	//dlog("start to log test {}", time(0) );
     while(true){

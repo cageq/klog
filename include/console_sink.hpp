@@ -3,46 +3,46 @@
 #include <thread>
 #include <iostream>
 #include "log_sink.hpp"
- 
+
 
 #ifdef _WIN32
- 
-inline const char *_red()
+
+inline const char* _red()
 {
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_RED);
 	return "";
 }
-inline const char *_green()
+inline const char* _green()
 {
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_GREEN);
 	return "";
 }
-inline const char *_yellow()
+inline const char* _yellow()
 {
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_RED | FOREGROUND_GREEN);
 	return "";
 }
 
-inline const char *_blue()
+inline const char* _blue()
 {
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_BLUE);
 	return "";
 }
 
-inline const char *_magenta()
+inline const char* _magenta()
 {
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_BLUE | FOREGROUND_RED);
 	return "";
 }
-inline const char *_cyan()
+inline const char* _cyan()
 {
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_BLUE | FOREGROUND_GREEN);
 	return "";
 }
-inline const char *_reset()
+inline const char* _reset()
 {
 	SetConsoleTextAttribute(
-			GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_BLUE | FOREGROUND_RED | FOREGROUND_GREEN);
+		GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_BLUE | FOREGROUND_RED | FOREGROUND_GREEN);
 	return "";
 }
 
@@ -64,64 +64,176 @@ inline const char *_reset()
 #endif
 
 
-
-
 namespace klog
 {
 
-	class ConsoleSink : public LogSink
+
+
+	template <class Mutex = NoneMutex, bool = false >
+	class ConsoleSink : public LogSink {
+
+		virtual ~ConsoleSink() {}
+
+		int32_t write(int level, const std::string& msg)
+		{
+			if (line_level < 0)
+			{
+				line_level = level;
+			}
+
+			buffer.append(msg);
+			return 0;
+		}
+
+		virtual void flush(const std::string& log = "")
+		{
+			std::lock_guard<Mutex> guard(log_mutex);
+			buffer.append(log);
+			std::cout << buffer << std::endl;
+			buffer.clear();
+			line_level = -1;
+		}
+
+		const char* get_level_color() {
+			switch (line_level) {
+			case klog::KLOG_LEVEL_INFO:
+				return ANSI_COLOR_GREEN;
+			case klog::KLOG_LEVEL_DEBUG:
+				return ANSI_COLOR_CYAN;
+			case klog::KLOG_LEVEL_WARN:
+				return ANSI_COLOR_YELLOW;
+			case klog::KLOG_LEVEL_ERROR:
+				return ANSI_COLOR_RED;
+			default:
+				return "";
+			}
+		}
+
+
+	private:
+
+		int line_level = -1;
+		static thread_local std::string buffer;
+		Mutex log_mutex;
+	};
+
+	template <class Mutex    >
+	class ConsoleSink<Mutex, false> : public LogSink
 	{
 
-		public:
-			ConsoleSink(bool color = true):with_color(color){
+	public:
 
-			}
-			virtual ~ConsoleSink(){}
 
-			int32_t write(int level , const std::string &msg)
-			{ 
-				if (line_level  < 0 )
-				{
-					line_level = level; 
-				}
-				
-				buffer.append(msg); 
-				return 0;
-			}
-			virtual void flush(const std::string & log = "")
+		virtual ~ConsoleSink() {}
+
+		int32_t write(int level, const std::string& msg)
+		{
+			if (line_level < 0)
 			{
-				buffer.append(log); 
-				if (with_color)
-				{
-					std::cout << get_level_color() <<  buffer << ANSI_COLOR_RESET <<  std::endl; 
-				}else {
-					std::cout <<  buffer << std::endl; 
-				}
-				
-				buffer.clear(); 
-				line_level = -1; 
+				line_level = level;
 			}
 
-			const char * get_level_color(  ){
-				switch(line_level){
-                    case klog::KLOG_LEVEL_INFO:
-					return ANSI_COLOR_GREEN; 
-                    case klog::KLOG_LEVEL_DEBUG: 
-					return ANSI_COLOR_CYAN; 
-                    case klog::KLOG_LEVEL_WARN: 
-					return ANSI_COLOR_YELLOW; 
-                    case klog::KLOG_LEVEL_ERROR: 
-					return ANSI_COLOR_RED; 
-					default: 
-					return ""; 
-				}
+			buffer.append(msg);
+			return 0;
+		}
+
+		virtual void flush(const std::string& log = "")
+		{
+
+			std::lock_guard<Mutex> guard(log_mutex);
+			buffer.append(log);
+
+			std::cout << buffer << std::endl;
+			buffer.clear();
+			line_level = -1;
+		}
+
+		const char* get_level_color() {
+			switch (line_level) {
+			case klog::KLOG_LEVEL_INFO:
+				return ANSI_COLOR_GREEN;
+			case klog::KLOG_LEVEL_DEBUG:
+				return ANSI_COLOR_CYAN;
+			case klog::KLOG_LEVEL_WARN:
+				return ANSI_COLOR_YELLOW;
+			case klog::KLOG_LEVEL_ERROR:
+				return ANSI_COLOR_RED;
+			default:
+				return "";
 			}
+		}
 
 
-		private:
-		bool with_color  = true; 
-			int line_level = -1; 
-			std::string buffer; 
+	private:
+
+		int line_level = -1;
+		static thread_local std::string buffer;
+		Mutex log_mutex;
 	};
+	template <class Mutex >
+	thread_local std::string ConsoleSink<Mutex, false >::buffer;
+
+
+
+
+
+	template <class Mutex   >
+	class ConsoleSink <Mutex, true> : public LogSink
+	{
+
+	public:
+
+
+		virtual ~ConsoleSink() {}
+
+		int32_t write(int level, const std::string& msg)
+		{
+			if (line_level < KLOG_LEVEL_NULL)
+			{
+				line_level = level;
+			}
+
+			buffer.append(msg);
+			return 0;
+		}
+
+		virtual void flush(const std::string& log = "")
+		{
+
+			std::lock_guard<Mutex> guard(log_mutex);
+			buffer.append(log);
+			std::cout << get_level_color() << buffer << ANSI_COLOR_RESET << std::endl;
+			buffer.clear();
+			line_level = -1;
+		}
+
+		const char* get_level_color() {
+			switch (line_level) {
+			case klog::KLOG_LEVEL_INFO:
+				return ANSI_COLOR_GREEN;
+			case klog::KLOG_LEVEL_DEBUG:
+				return ANSI_COLOR_CYAN;
+			case klog::KLOG_LEVEL_WARN:
+				return ANSI_COLOR_YELLOW;
+			case klog::KLOG_LEVEL_ERROR:
+				return ANSI_COLOR_RED;
+			default:
+				return "";
+			}
+		}
+
+
+	private:
+
+		int line_level = -1;
+		static thread_local std::string buffer;
+
+		Mutex log_mutex;
+
+	};
+	template <class Mutex>
+	thread_local std::string ConsoleSink<Mutex, true> ::buffer;
+ 
+
 
 } // namespace klog
