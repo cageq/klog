@@ -25,34 +25,8 @@
 
 namespace klog
 {
+ 
 
-
-#define  KLOG_THREAD_SAFE   1
-
-#ifdef KLOG_THREAD_SAFE  
-    using LogMutex = std::mutex; 
-#else 
-    struct LogMutex{
-        void lock(){}; 
-        void unlock(){}; 
-        void try_lock(){}; 
-    }; 
-#endif 
-
-
-
-
-
-    const char *   kLogLevelPrefix[] = {
-        "",
-        "[ERROR]",
-        "[WARN]",
-        "[DEBUG]", 
-        "[INFO]"
-    }; 
-    inline std::tm  log_time(){
-        return fmt::localtime(std::time(nullptr));
-    }
 
     /*
     inline uint32_t args_length(){ return 0; }
