@@ -26,8 +26,8 @@ int main(int argc, char **argv)
 
         mylog.dout << "dout log from my debug out " << index ; 
 
-        dout <<" dout log from xout " << index ;
-        iout <<" iout log from xout " << index ;
+        dout <<"dout log from xout " << index ;
+        iout <<"iout log from xout " << index ;
         //mylog.dout() << "dout from my log xout" << index ; 
 //        iout <<" iout log from xout " << index ;
 //        wout <<" wout log from xout " << index ;
