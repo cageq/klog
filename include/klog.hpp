@@ -52,7 +52,6 @@ namespace klog
         format_log_postfix(buf, rest...);
     }
 
-
     class KLog
     {
         typedef std::basic_ostream<char, std::char_traits<char>> CoutType;
