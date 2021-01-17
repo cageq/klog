@@ -104,13 +104,13 @@ namespace klog
 
 			const char * get_level_color(  ){
 				switch(line_level){
-					case 0:
+                    case klog::KLOG_LEVEL_INFO:
 					return ANSI_COLOR_GREEN; 
-					case 1: 
+                    case klog::KLOG_LEVEL_DEBUG: 
 					return ANSI_COLOR_CYAN; 
-					case 2: 
+                    case klog::KLOG_LEVEL_WARN: 
 					return ANSI_COLOR_YELLOW; 
-					case 3: 
+                    case klog::KLOG_LEVEL_ERROR: 
 					return ANSI_COLOR_RED; 
 					default: 
 					return ""; 

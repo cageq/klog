@@ -13,12 +13,12 @@ using namespace klog;
 int main(int argc, char **argv)
 {
 
-    KLog<>::instance().init_async(true);
-    KLog<>::instance().add_sink<FileSink>("./klog.log");
-    KLog<>::instance().add_sink<ConsoleSink>();
+    KLog::instance().init_async(true);
+    KLog::instance().add_sink<FileSink>("./klog.log");
+    KLog::instance().add_sink<ConsoleSink>();
     uint32_t index =0; 
 
-    KLog<> mylog; 
+    KLog mylog; 
     mylog.add_sink<ConsoleSink>(); 
 
 	//dlog("start to log test {}", time(0) );
