@@ -41,9 +41,43 @@ namespace klog {
     }
 
 
-    struct  NoneMutex{
-		inline void lock(){}
-		inline void unlock(){}
-	}; 
+    struct  NoneMutex {
+        inline void lock() {}
+        inline void unlock() {}
+    };
+
+    enum KLogPrefixType {
+        KLOG_PREFIX_NONE,
+        KLOG_PREFIX_TIME,
+        KLOG_PREFIX_DATETIME,
+
+    };
+
+    template <int  >
+    struct KLogPrefix {
+        const char* prefix(KLogLevel lv) {
+            return  kLogLevelPrefix[lv];
+        }
+    };
+
+    template <  >
+    struct KLogPrefix<KLOG_PREFIX_NONE> {
+        const char* prefix(KLogLevel lv) {
+            return "";
+        }
+    };
+    template <  >
+    struct KLogPrefix<KLOG_PREFIX_TIME> {
+
+        inline const char* prefix(KLogLevel lv) {
+            std::tm curTime = log_time();
+            int ret = sprintf(szBuf, "%d/%d/%d %d:%d:%d", curTime.tm_yday, curTime.tm_mon, curTime.tm_mday, curTime.tm_hour, curTime.tm_min, curTime.tm_sec);
+            szBuf[ret] = '\0';
+            return szBuf;
+        }
+
+        char szBuf[128];
+    };
+
 
 }

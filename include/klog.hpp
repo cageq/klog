@@ -87,11 +87,11 @@ namespace klog
             }
 
             template <class T>
-            FlowHelper& operator<<(const T& log) {
+            FlowHelper operator<<(const T& log) {
                 if (logger) {
                     fmt::format_to(logger->buffer, " {}", log);
                 }
-                return *this;
+                return FlowHelper(std::move(*this));
             }
 
             ~FlowHelper() {
@@ -131,7 +131,10 @@ namespace klog
             template <class T>
             FlowHelper operator<<(const T& log) {
 #if KLOG_LEVEL >= KLOG_LEVEL_DEBUG   
-                return logger.debug_logger() << log;
+
+                // logger.debug_logger() << KLogPrefix<1>().prefix(KLOG_LEVEL_DEBUG) ; 
+                // return logger.debug_logger() << log;
+                 return logger.debug_logger() << KLogPrefix<1>().prefix(KLOG_LEVEL_DEBUG) << log;
 #else 
                 return logger.null_logger() << log;
 #endif 
@@ -145,7 +148,8 @@ namespace klog
             template <class T>
             FlowHelper operator<<(const T& log) {
 #if KLOG_LEVEL >= KLOG_LEVEL_INFO   
-                return logger.info_logger() << log;
+
+            return logger.info_logger() << KLogPrefix<1>().prefix(KLOG_LEVEL_INFO) << log;             
 #else 
                 return logger.null_logger() << log;
 #endif  
@@ -160,7 +164,8 @@ namespace klog
 
 
 #if KLOG_LEVEL >= KLOG_LEVEL_WARN   
-                return logger.warn_logger() << log;
+                
+                return logger.warn_logger() << KLogPrefix<1>().prefix(KLOG_LEVEL_WARN) << log;         
 #else 
                 return logger.null_logger() << log;
 #endif  
@@ -177,7 +182,8 @@ namespace klog
             FlowHelper operator<<(const T& log) {
 
 #if KLOG_LEVEL >= KLOG_LEVEL_WARN   
-                return logger.error_logger() << log;
+
+                return logger.error_logger() << KLogPrefix<1>().prefix(KLOG_LEVEL_ERROR) << log;                         
 #else 
                 return logger.null_logger() << log;
 #endif 
@@ -344,7 +350,7 @@ namespace klog
             if (level >= KLOG_LEVEL_DEBUG)
             {
 
-                fmt::format_to(buffer, "[DEBUG] " + fmt, args...);
+                fmt::format_to(buffer, "[DEBUG]" + fmt, args...);
                 this->write(KLOG_LEVEL_DEBUG, fmt::to_string(buffer));
                 this->flush();
             }
@@ -389,7 +395,7 @@ namespace klog
         {
             if (level >= KLOG_LEVEL_INFO)
             {
-                fmt::format_to(buffer, "[INFO] " + fmt, args...);
+                fmt::format_to(buffer, "[INFO]" + fmt, args...);
                 this->write(KLOG_LEVEL_INFO, fmt::to_string(buffer));
                 this->flush();
             }
