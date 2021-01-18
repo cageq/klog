@@ -55,14 +55,14 @@ namespace klog {
 
     template <int  >
     struct KLogPrefix {
-        const char* prefix(KLogLevel lv) {
+        inline const char* operator()(KLogLevel lv) {
             return  kLogLevelPrefix[lv];
         }
     };
 
     template <  >
     struct KLogPrefix<KLOG_PREFIX_NONE> {
-        const char* prefix(KLogLevel lv) {
+        inline const char* operator()(KLogLevel lv) {
             return "";
         }
     };
@@ -71,7 +71,7 @@ namespace klog {
 
         inline const char* operator()(KLogLevel lv) {
             std::tm curTime = log_time();
-            int ret = sprintf(szBuf, "%d/%d/%d %d:%d:%d", curTime.tm_yday, curTime.tm_mon, curTime.tm_mday, curTime.tm_hour, curTime.tm_min, curTime.tm_sec);
+            int ret = sprintf(szBuf,  "%s%d/%d/%d %02d:%02d:%02d ",kLogLevelPrefix[lv], curTime.tm_yday, curTime.tm_mon, curTime.tm_mday, curTime.tm_hour, curTime.tm_min, curTime.tm_sec);
             szBuf[ret] = '\0';
             return szBuf;
         }

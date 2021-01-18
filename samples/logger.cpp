@@ -13,18 +13,19 @@ using namespace klog;
 int main(int argc, char **argv)
 {
 
-    KLog::instance().init_async(true);
-    KLog::instance().add_sink<FileSink<> >("./klog.log");
-    KLog::instance().add_sink<ConsoleSink<std::mutex>  >();
+    KLog<>::instance().init_async(true);
+    KLog<>::instance().add_sink<FileSink<> >("./klog.log");
+    KLog<>::instance().add_sink<ConsoleSink<std::mutex>  >();
     uint32_t index =0; 
 
-    KLog mylog; 
+    KLog<> mylog; 
     mylog.add_sink<ConsoleSink<>>(); 
 
 	//dlog("start to log test {}", time(0) );
     while(true){
 
         mylog.dout << "dout log from my debug out " << index ; 
+        mylog.dput("hello", 2021); 
 
         dout <<"dout log from xout " << index ;
         iout <<"iout log from xout " << index ;
