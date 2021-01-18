@@ -76,7 +76,7 @@ namespace klog {
             return szBuf;
         }
 
-        char szBuf[128];
+        char szBuf[64];
     };
 
 

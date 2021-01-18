@@ -69,7 +69,7 @@ namespace klog
 
 
 
-	template <class Mutex = NoneMutex, bool = false >
+	template <class Mutex = NoneMutex, bool = true>
 	class ConsoleSink : public LogSink {
 
 		virtual ~ConsoleSink() {}
