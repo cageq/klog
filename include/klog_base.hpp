@@ -69,7 +69,7 @@ namespace klog {
     template <  >
     struct KLogPrefix<KLOG_PREFIX_TIME> {
 
-        inline const char* prefix(KLogLevel lv) {
+        inline const char* operator()(KLogLevel lv) {
             std::tm curTime = log_time();
             int ret = sprintf(szBuf, "%d/%d/%d %d:%d:%d", curTime.tm_yday, curTime.tm_mon, curTime.tm_mday, curTime.tm_hour, curTime.tm_min, curTime.tm_sec);
             szBuf[ret] = '\0';

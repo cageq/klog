@@ -54,7 +54,7 @@ namespace klog
 
     class KLog
     {
-        typedef std::basic_ostream<char, std::char_traits<char>> CoutType;
+        typedef std::basic_ostream<char, std::char_traits<char> > CoutType;
         // this is the function signature of std::endl
         typedef CoutType& (*StandardEndLine)(CoutType&);
 
@@ -133,7 +133,7 @@ namespace klog
 
                 // logger.debug_logger() << KLogPrefix<1>().prefix(KLOG_LEVEL_DEBUG) ; 
                 // return logger.debug_logger() << log;
-                 return logger.debug_logger() << KLogPrefix<1>().prefix(KLOG_LEVEL_DEBUG) << log;
+                 return logger.debug_logger() << KLogPrefix<1>()(KLOG_LEVEL_DEBUG) << log;
 #else 
                 return logger.null_logger() << log;
 #endif 
@@ -148,7 +148,7 @@ namespace klog
             FlowHelper operator<<(const T& log) {
 #if KLOG_LEVEL >= KLOG_LEVEL_INFO   
 
-            return logger.info_logger() << KLogPrefix<1>().prefix(KLOG_LEVEL_INFO) << log;             
+            return logger.info_logger() << KLogPrefix<1>()(KLOG_LEVEL_INFO) << log;             
 #else 
                 return logger.null_logger() << log;
 #endif  
@@ -160,16 +160,11 @@ namespace klog
             WarnLogger(KLog& log) :logger(log) { }
             template <class T>
             FlowHelper operator<<(const T& log) {
-
-
-#if KLOG_LEVEL >= KLOG_LEVEL_WARN   
-                
-                return logger.warn_logger() << KLogPrefix<1>().prefix(KLOG_LEVEL_WARN) << log;         
+#if KLOG_LEVEL >= KLOG_LEVEL_WARN                   
+                return logger.warn_logger() << KLogPrefix<1>()(KLOG_LEVEL_WARN) << log;         
 #else 
                 return logger.null_logger() << log;
 #endif  
-
-
             }
 
             KLog& logger;
@@ -181,8 +176,7 @@ namespace klog
             FlowHelper operator<<(const T& log) {
 
 #if KLOG_LEVEL >= KLOG_LEVEL_WARN   
-
-                return logger.error_logger() << KLogPrefix<1>().prefix(KLOG_LEVEL_ERROR) << log;                         
+                return logger.error_logger() << KLogPrefix<1>()(KLOG_LEVEL_ERROR) << log;                         
 #else 
                 return logger.null_logger() << log;
 #endif 
