@@ -48,7 +48,7 @@ namespace klog
     template <class P, class... Args>
         void format_log_prefix(const std::string& prefix, fmt::memory_buffer& buf, P first, Args... rest)
         {
-            fmt::format_to(buf, prefix + "{{}}");
+            fmt::format_to(buf, prefix + " {{}}");
             format_log_postfix(buf, rest...);
         }
 
@@ -287,8 +287,7 @@ namespace klog
             }
 
             inline KLog& error_logger() {
-                line_level = KLOG_LEVEL_ERROR;
-                
+                line_level = KLOG_LEVEL_ERROR;                
                 return *this;
             }
 
@@ -307,8 +306,8 @@ namespace klog
                     {
                         fmt::memory_buffer fmtBuf;
                         fmtBuf.reserve(256);
-                        format_log_prefix(PreFmt()(KLOG_LEVEL_DEBUG) , fmtBuf, args...);
-                        fmt::format_to(buffer, fmt::to_string(fmtBuf), args...);
+                        format_log_prefix( PreFmt()(KLOG_LEVEL_DEBUG)  , fmtBuf, args...);
+                        fmt::format_to(buffer,  fmt::to_string(fmtBuf) , args...);
                         this->write(KLOG_LEVEL_DEBUG, fmt::to_string(buffer));
                         this->flush();
                         buffer.clear();
@@ -359,7 +358,7 @@ namespace klog
                     if (level >= KLOG_LEVEL_INFO)
                     {
                         fmt::memory_buffer fmtBuf;
-                        format_log_prefix(PreFmt()(KLOG_LEVEL_INFO) , fmtBuf, args...);
+                        format_log_prefix ( PreFmt()(KLOG_LEVEL_INFO) , fmtBuf, args...);
                         fmt::format_to(buffer, fmt::to_string(fmtBuf), args...);
                         this->write(KLOG_LEVEL_INFO, fmt::to_string(buffer));
                         this->flush();

@@ -71,7 +71,7 @@ namespace klog {
 
         inline const char* operator()(KLogLevel lv) {
             std::tm curTime = log_time();
-            int ret = sprintf(szBuf,  "%s%d/%d/%d %02d:%02d:%02d ",kLogLevelPrefix[lv], curTime.tm_yday, curTime.tm_mon, curTime.tm_mday, curTime.tm_hour, curTime.tm_min, curTime.tm_sec);
+            int ret = sprintf(szBuf,  "[%d/%d/%d %02d:%02d:%02d] %s",curTime.tm_yday, curTime.tm_mon, curTime.tm_mday, curTime.tm_hour, curTime.tm_min, curTime.tm_sec, kLogLevelPrefix[lv] );
             szBuf[ret] = '\0';
             return szBuf;
         }
