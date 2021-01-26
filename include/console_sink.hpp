@@ -117,6 +117,10 @@ namespace klog
 		Mutex log_mutex;
 	};
 
+
+	template <class Mutex , bool color >
+	thread_local std::string ConsoleSink<Mutex, color> ::buffer;
+
 	template <class Mutex    >
 	class ConsoleSink<Mutex, false> : public LogSink
 	{
