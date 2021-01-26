@@ -15,9 +15,9 @@ namespace klog {
 #define KLOG_WITH_COMMA_SUPPORT 0
 #endif 
 
-#ifndef KLOG_THREAD_SAFE 
-#define KLOG_THREAD_SAFE 1 
-#endif  
+//#ifndef KLOG_THREAD_SAFE 
+//#define KLOG_THREAD_SAFE 1 
+//#endif  
 
     enum KLogLevel
     {
