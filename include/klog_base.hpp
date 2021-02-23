@@ -28,7 +28,7 @@ namespace klog {
         KLOG_LEVEL_INFO,
     };
 
-    const char* kLogLevelPrefix[] = {
+    static const char* kLogLevelPrefix[] = {
         "",
         "[ERROR]",
         "[WARN]",
